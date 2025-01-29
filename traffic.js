@@ -331,7 +331,7 @@ const OpenBrowser = async (link, username) => {
     proxy: {
       server: "148.113.161.141:5959",
       username: username,
-      password: process.env.JEDI ,
+      password: process.env.JEDI,
     },
   });
 
@@ -381,10 +381,9 @@ const OpenBrowser = async (link, username) => {
   }
 };
 
-const tasksPoll = async (views) => {
-  const threadCount = generateRandomNumber(minThreads, maxThreads);
-  bots = threadCount;
-  const tasks = Array.from({ length: threadCount }).map(() => {
+const tasksPoll = async () => {
+  bots = Math.floor(Math.random() * (max - min + 1)) + min;
+  const tasks = Array.from({ length: bots }).map(() => {
     let location = locations[generateRandomNumber(0, locations.length + 1)];
     const username =
       "qualityser-res-" +
@@ -401,7 +400,7 @@ const tasksPoll = async (views) => {
 const RunTasks = async () => {
   for (let i = 0; i < 14534554; i++) {
     try {
-      await tasksPoll(views);
+      await tasksPoll();
     } catch (error) {
       console.log(error);
     }
