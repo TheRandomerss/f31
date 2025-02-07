@@ -28,22 +28,11 @@ const locations = [
     "se", // Sweden
   "se", // Sweden
   "se", // Sweden
-  "za", // South Africa
-  "za", // South Africa
-  "za", // South Africa
-  "za", // South Africa
-  "ng", // Nigeria
-  "ng", // Nigeria
-  "ng", // Nigeria
-  "ng", // Nigeria
-  "cm", // Cameroon
-  "cm", // Cameroon
-  "cm", // Cameroon
-  "cm", // Cameroon
-  "ci", // Cote D'Ivoire
-  "ci", // Cote D'Ivoire
-  "ci", // Cote D'Ivoire
-  "ci", // Cote D'Ivoire
+    "se", // Sweden
+  "se", // Sweden
+    "se", // Sweden
+  "se", // Sweden
+
   "ua", // Ukraine
   "ua", // Ukraine
   "ua", // Ukraine
@@ -89,26 +78,7 @@ const locations = [
   "us", // United States
   "us", // United States
   "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
+
 
   "fr", // France
   "fr", // France
@@ -142,10 +112,10 @@ const locations = [
   "bf", // Burkina Faso
   "cd", // Congo, The Democratic Republic of the
   "bi", // Burundi
-  "gf", // French Guiana
+
   "cf", // Central African Republic
   "hk", // Hong Kong
-  "cg", // Congo
+
 ];
 
 // Function to select a random user preference
