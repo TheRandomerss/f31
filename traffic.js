@@ -16,6 +16,18 @@ const locations = [
   "se", // Sweden
   "se", // Sweden
   "se", // Sweden
+    "se", // Sweden
+  "se", // Sweden
+  "se", // Sweden
+    "se", // Sweden
+  "se", // Sweden
+  "se", // Sweden
+    "se", // Sweden
+  "se", // Sweden
+  "se", // Sweden
+    "se", // Sweden
+  "se", // Sweden
+  "se", // Sweden
   "za", // South Africa
   "za", // South Africa
   "za", // South Africa
