@@ -4,8 +4,8 @@ import { checkTz } from "./tz_px.js";
 
 const url = "https://zylox.link/";
 // Threads range
-const min = 5; // Minimum threads for task execution.
-const max = 8; // Maximum threads for task execution.
+const min = 4; // Minimum threads for task execution.
+const max = 9; // Maximum threads for task execution.
 let bots;
 let views = 0;
 function generateRandomNumber(min, max) {
@@ -146,13 +146,7 @@ const referers = [
   "https://www.google.com",
   "https://www.discord.com",
   "https://twitter.com",
-  "https://www.reddit.com",
   "https://www.linkedin.com",
-  "https://news.ycombinator.com",
-  "https://www.github.com",
-  "https://www.bing.com",
-  "https://www.youtube.com",
-  "https://www.facebook.com",
 ];
 
 export const generateNoise = () => {
