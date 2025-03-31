@@ -2,7 +2,7 @@ import { chromium, firefox } from "playwright";
 import { newInjectedContext } from "fingerprint-injector";
 import { checkTz } from "./tz_px.js";
 
-const url = "https://zylox.link/";
+const url = "https://9albifilmadina.shop/";
 // Threads range
 const min = 4; // Minimum threads for task execution.
 const max = 9; // Maximum threads for task execution.
