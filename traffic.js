@@ -1,387 +1,193 @@
-import { chromium, firefox } from "playwright";
+import { chromium } from "playwright";
 import { newInjectedContext } from "fingerprint-injector";
-import { checkTz } from "./tz_px.js";
+import { checkTz } from "./tz_px.js"; // Ensure this module is properly set up
 
 const url = "https://9albifilmadina.shop/";
-// Threads range
-const min = 4; // Minimum threads for task execution.
-const max = 9; // Maximum threads for task execution.
-let bots;
-let views = 0;
-function generateRandomNumber(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+const MAX_CONCURRENT_THREADS = 7; // Semaphore-style concurrency control
+const LONG_SESSION_PROBABILITY = 0.05; // 5% long sessions
+
+class Semaphore {
+  constructor(max) {
+    this.tasks = [];
+    this.count = max;
+  }
+
+  acquire() {
+    return new Promise(resolve => {
+      if (this.count > 0) {
+        this.count--;
+        resolve();
+      } else {
+        this.tasks.push(resolve);
+      }
+    });
+  }
+
+  release() {
+    if (this.tasks.length > 0) {
+      const next = this.tasks.shift();
+      next();
+    } else {
+      this.count++;
+    }
+  }
 }
 
-const locations = [
-  "se", // Sweden
-  "se", // Sweden
-  "se", // Sweden
-    "se", // Sweden
-  "se", // Sweden
-  "se", // Sweden
-    "se", // Sweden
-  "se", // Sweden
-  "se", // Sweden
-    "se", // Sweden
-  "se", // Sweden
-  "se", // Sweden
-    "se", // Sweden
-  "se", // Sweden
-  "se", // Sweden
-    "se", // Sweden
-  "se", // Sweden
-    "se", // Sweden
-  "se", // Sweden
+const semaphore = new Semaphore(MAX_CONCURRENT_THREADS);
 
-  "ua", // Ukraine
-  "ua", // Ukraine
-  "ua", // Ukraine
-  "ua", // Ukraine
-  "at", // Austria
-  "at", // Austria
-  "at", // Austria
-  "at", // Austria
-  "fr", // France
-  "fr", // France
-  "fr", // France
-  "fr", // France
-  "fr", // France
-  "fr", // France
-  "ca", // Canada
-  "ca", // Canada
-  "ca", // Canada
-  "ca", // Canada
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
-  "us", // United States
+const realisticHeaders = {
+  "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+  "accept-encoding": "gzip, deflate, br",
+  "accept-language": "en-US,en;q=0.9",
+  "cache-control": "no-cache",
+  "pragma": "no-cache",
+  "upgrade-insecure-requests": "1"
+};
 
-
-  "fr", // France
-  "fr", // France
-  "fr", // France
-  "uk", // United Kingdom
-  "au", // Australia
-  "de", // Germany
-  "jp", // Japan
-  "sg", // Singapore
-  "kr", // South Korea
-  "it", // Italy
-  "es", // Spain
-  "in", // India
-  "id", // Indonesia
-  "ph", // Philippines
-  "th", // Thailand
-  "my", // Malaysia
-  "eg", // Egypt
-  "tr", // Turkey
-  "pk", // Pakistan (English speakers, strong internet growth)
-  "bd", // Bangladesh (growing internet users, relevance to global content)
-  "mx", // Mexico (geographical proximity, U.S. ties)
-  "lk", // Sri Lanka
-  "ml", // Mali
-  "bj", // Benin
-  "ug", // Uganda
-  "mm", // Myanmar
-  "no", // Norway
-  "pf", // French Polynesia
-  "np", // Nepal
-  "bf", // Burkina Faso
-  "cd", // Congo, The Democratic Republic of the
-  "bi", // Burundi
-
-  "cf", // Central African Republic
-  "hk", // Hong Kong
-
+const humanMouseMovements = [
+  { type: 'move', x: 100, y: 200, duration: 500 },
+  { type: 'click', x: 300, y: 400 },
+  { type: 'scroll', y: 500 },
+  { type: 'move', x: 50, y: 300, duration: 1000 }
 ];
 
-// Function to select a random user preference
-const weightedRandom = (weights) => {
-  let totalWeight = weights.reduce((sum, weight) => sum + weight.weight, 0);
-  let random = Math.random() * totalWeight;
-  for (let i = 0; i < weights.length; i++) {
-    if (random < weights[i].weight) return weights[i].value;
-    random -= weights[i].weight;
+const getRandomReferer = () => {
+  const sources = [
+    { url: "https://www.google.com/", weight: 70 },
+    { url: "https://www.facebook.com/", weight: 10 },
+    { url: "https://twitter.com/", weight: 8 },
+    { url: "https://www.reddit.com/", weight: 7 },
+    { url: "https://www.linkedin.com/", weight: 5 }
+  ];
+  
+  const total = sources.reduce((acc, curr) => acc + curr.weight, 0);
+  const random = Math.random() * total;
+  let sum = 0;
+  
+  for (const source of sources) {
+    sum += source.weight;
+    if (random <= sum) return source.url;
+  }
+  return sources[0].url;
+};
+
+const humanType = async (page, text) => {
+  for (const char of text) {
+    await page.keyboard.type(char, { delay: Math.random() * 100 + 50 });
+    if (Math.random() < 0.05) await page.waitForTimeout(200 + Math.random() * 500);
   }
 };
 
-// Preferences for user agents and devices
-const preferences = [
-  {
-    value: { device: "desktop", os: "windows", browser: "chrome" },
-    weight: 20,
-  },
-
-  {
-    value: { device: "mobile", os: "android", browser: "chrome" },
-    weight: 100,
-  },
-];
-
-// Sources
-const referers = [
-  "https://www.google.com",
-  "https://www.discord.com",
-  "https://twitter.com",
-  "https://www.linkedin.com",
-];
-
-export const generateNoise = () => {
-  const shift = {
-    r: Math.floor(Math.random() * 5) - 2,
-    g: Math.floor(Math.random() * 5) - 2,
-    b: Math.floor(Math.random() * 5) - 2,
-    a: Math.floor(Math.random() * 5) - 2,
-  };
-  const webglNoise = (Math.random() - 0.5) * 0.01;
-  const clientRectsNoise = {
-    deltaX: (Math.random() - 0.5) * 2,
-    deltaY: (Math.random() - 0.5) * 2,
-  };
-  const audioNoise = (Math.random() - 0.5) * 0.000001;
-
-  return { shift, webglNoise, clientRectsNoise, audioNoise };
-};
-
-export const noisifyScript = (noise) => `
-  (function() {
-    const noise = ${JSON.stringify(noise)};
-
-    // Canvas Noisify
-    const getImageData = CanvasRenderingContext2D.prototype.getImageData;
-    const noisify = function (canvas, context) {
-      if (context) {
-        const shift = noise.shift;
-        const width = canvas.width;
-        const height = canvas.height;
-        if (width && height) {
-          const imageData = getImageData.apply(context, [0, 0, width, height]);
-          for (let i = 0; i < height; i++) {
-            for (let j = 0; j < width; j++) {
-              const n = ((i * (width * 4)) + (j * 4));
-              imageData.data[n + 0] = imageData.data[n + 0] + shift.r;
-              imageData.data[n + 1] = imageData.data[n + 1] + shift.g;
-              imageData.data[n + 2] = imageData.data[n + 2] + shift.b;
-              imageData.data[n + 3] = imageData.data[n + 3] + shift.a;
-            }
-          }
-          context.putImageData(imageData, 0, 0); 
-        }
-      }
-    };
-    HTMLCanvasElement.prototype.toBlob = new Proxy(HTMLCanvasElement.prototype.toBlob, {
-      apply(target, self, args) {
-        noisify(self, self.getContext("2d"));
-        return Reflect.apply(target, self, args);
-      }
-    });
-    HTMLCanvasElement.prototype.toDataURL = new Proxy(HTMLCanvasElement.prototype.toDataURL, {
-      apply(target, self, args) {
-        noisify(self, self.getContext("2d"));
-        return Reflect.apply(target, self, args);
-      }
-    });
-    CanvasRenderingContext2D.prototype.getImageData = new Proxy(CanvasRenderingContext2D.prototype.getImageData, {
-      apply(target, self, args) {
-        noisify(self.canvas, self);
-        return Reflect.apply(target, self, args);
-      }
-    });
-
-    // Audio Noisify
-    const originalGetChannelData = AudioBuffer.prototype.getChannelData;
-    AudioBuffer.prototype.getChannelData = function() {
-      const results = originalGetChannelData.apply(this, arguments);
-      for (let i = 0; i < results.length; i++) {
-        results[i] += noise.audioNoise; // Smaller variation
-      }
-      return results;
-    };
-
-    const originalCopyFromChannel = AudioBuffer.prototype.copyFromChannel;
-    AudioBuffer.prototype.copyFromChannel = function() {
-      const channelData = new Float32Array(arguments[1]);
-      for (let i = 0; i < channelData.length; i++) {
-        channelData[i] += noise.audioNoise; // Smaller variation
-      }
-      return originalCopyFromChannel.apply(this, [channelData, ...Array.prototype.slice.call(arguments, 1)]);
-    };
-
-    const originalCopyToChannel = AudioBuffer.prototype.copyToChannel;
-    AudioBuffer.prototype.copyToChannel = function() {
-      const channelData = arguments[0];
-      for (let i = 0; i < channelData.length; i++) {
-        channelData[i] += noise.audioNoise; // Smaller variation
-      }
-      return originalCopyToChannel.apply(this, arguments);
-    };
-
-    // WebGL Noisify
-    const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-    WebGLRenderingContext.prototype.getParameter = function() {
-      const value = originalGetParameter.apply(this, arguments);
-      if (typeof value === 'number') {
-        return value + noise.webglNoise; // Small random variation
-      }
-      return value;
-    };
-
-    // ClientRects Noisify
-    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
-    Element.prototype.getBoundingClientRect = function() {
-      const rect = originalGetBoundingClientRect.apply(this, arguments);
-      const deltaX = noise.clientRectsNoise.deltaX; // Random shift between -1 and 1
-      const deltaY = noise.clientRectsNoise.deltaY; // Random shift between -1 and 1
-      return {
-        x: rect.x + deltaX,
-        y: rect.y + deltaY,
-        width: rect.width + deltaX,
-        height: rect.height + deltaY,
-        top: rect.top + deltaY,
-        right: rect.right + deltaX,
-        bottom: rect.bottom + deltaY,
-        left: rect.left + deltaX
-      };
-    };
-  })();
-`;
-
-// Function to simulate random clicks on a page
-const performRandomClicks = async (page) => {
-  const numClicks = generateRandomNumber(2, 4); // Random number between 2 and 4
-  for (let i = 0; i < 1; i++) {
-    const width = await page.evaluate(() => window.innerWidth);
-    const height = await page.evaluate(() => window.innerHeight);
-    const x = generateRandomNumber(0, width);
-    const y = generateRandomNumber(0, height);
-
-    await page.mouse.click(x, y);
-    console.log(`Click ${i + 1} performed at position (${x}, ${y})`);
-    await page.waitForTimeout(generateRandomNumber(2000, 3000));
+const realisticScroll = async (page) => {
+  const scrollSteps = Math.floor(Math.random() * 5) + 3;
+  for (let i = 0; i < scrollSteps; i++) {
+    const scrollDistance = Math.random() * 800 + 200;
+    await page.mouse.wheel(0, scrollDistance);
+    await page.waitForTimeout(Math.random() * 1000 + 500);
   }
 };
 
-const blockResources = async (page) => {
-  await page.route("**/*", (route) => {
-    const resourceType = route.request().resourceType();
-    if (["image", "stylesheet", "media", "font"].includes(resourceType)) {
-      route.abort();
-    } else {
-      route.continue();
+const humanInteraction = async (page) => {
+  // Random mouse movements
+  for (const action of humanMouseMovements) {
+    if (action.type === 'move') {
+      await page.mouse.move(action.x + Math.random() * 50, action.y + Math.random() * 50, {
+        steps: 10,
+        duration: action.duration
+      });
+    } else if (action.type === 'click') {
+      await page.mouse.click(action.x + Math.random() * 50, action.y + Math.random() * 50);
+    } else if (action.type === 'scroll') {
+      await realisticScroll(page);
     }
-  });
+    await page.waitForTimeout(Math.random() * 1000 + 500);
+  }
+
+  // Random typing simulation
+  if (Math.random() < 0.3) {
+    await humanType(page, String.fromCharCode(65 + Math.floor(Math.random() * 26)).catch(() => {});
+  }
 };
 
 const OpenBrowser = async (link, username) => {
-  const userPreference = weightedRandom(preferences);
-  console.log(userPreference);
-  const timezone = await checkTz(username);
-  if (timezone == undefined) {
-    return;
-  }
-  const browser = await chromium.launch({
-    headless: true,
-    proxy: {
-      server: "148.113.161.141:5959",
-      username: username,
-      password: process.env.JEDI,
-    },
-  });
-
-  const context = await newInjectedContext(browser, {
-    fingerprintOptions: {
-      devices: [userPreference.device],
-      browsers: [userPreference.browser],
-      operatingSystems: [userPreference.os],
-      mockWebRTC: true,
-    },
-    newContextOptions: {
-      timezoneId: timezone || "America/New_York",
-    },
-  });
+  await semaphore.acquire();
   try {
-    const noise = generateNoise();
+    const isLongSession = Math.random() < LONG_SESSION_PROBABILITY;
+    const browser = await chromium.launch({
+      headless: true,
+      proxy: {
+        server: "148.113.161.141:5959",
+        username: username,
+        password: process.env.JEDI,
+      },
+    });
+
+    const context = await newInjectedContext(browser, {
+      fingerprintOptions: {
+        devices: ["desktop", "mobile"][Math.floor(Math.random() * 2)],
+        browsers: ["chrome", "firefox", "safari"][Math.floor(Math.random() * 3)],
+        operatingSystems: ["windows", "macos", "linux"][Math.floor(Math.random() * 3)],
+        locales: ["en-US", "en-GB", "fr-FR"][Math.floor(Math.random() * 3)],
+        screen: {
+          width: Math.random() < 0.8 ? 1920 : 1366,
+          height: Math.random() < 0.8 ? 1080 : 768,
+        },
+      },
+    });
+
     const page = await context.newPage();
-    const referer = referers[Math.floor(Math.random() * referers.length)];
-    if (referer !== "direct") {
-      await page.setExtraHTTPHeaders({ referer });
-      console.log(`[+] Using referer: ${referer}`);
-    } else {
-      console.log(`[+] Using direct access (no referer).`);
+    await page.setExtraHTTPHeaders({
+      ...realisticHeaders,
+      'user-agent': context._userAgent,
+      'referer': getRandomReferer()
+    });
+
+    // Block unnecessary resources
+    await page.route('**/*', route => {
+      return ['image', 'stylesheet', 'font', 'media'].includes(route.request().resourceType()) 
+        ? route.abort() 
+        : route.continue();
+    });
+
+    // Add human-like delays
+    await page.goto(link, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 60000,
+      referer: getRandomReferer()
+    });
+
+    // Random interaction sequence
+    await page.waitForTimeout(2000 + Math.random() * 3000);
+    await realisticScroll(page);
+    await humanInteraction(page);
+    
+    if (isLongSession) {
+      // Extended session behavior
+      await page.waitForTimeout(30000 + Math.random() * 30000);
+      await realisticScroll(page);
+      await humanInteraction(page);
     }
 
-    // add media blockers
-    await blockResources(page);
-    await page.addInitScript(noisifyScript(noise));
-    await page.goto(link, { waitUntil: "load" });
-    console.log(
-      "Browser view from -> ",
-      timezone,
-      "website -> ",
-      url,
-      "threads :",
-      bots
-    );
-    await page.waitForTimeout(generateRandomNumber(6500, 7000));
-    await performRandomClicks(page);
-    await page.waitForTimeout(generateRandomNumber(35000, 40000));
-    views++;
-  } catch (error) {
-    console.log(error);
-  } finally {
-    await context.close();
+    await page.waitForTimeout(isLongSession ? 60000 : 15000 + Math.random() * 25000);
     await browser.close();
+  } catch (error) {
+    console.error('Error in session:', error);
+  } finally {
+    semaphore.release();
   }
 };
 
-const tasksPoll = async () => {
-  bots = Math.floor(Math.random() * (max - min + 1)) + min;
-  const tasks = Array.from({ length: bots }).map(() => {
-    let location = locations[generateRandomNumber(0, locations.length + 1)];
-    const username =
-      "qualityser-res-" +
-      location +
-      "-sid-" +
-      String(generateRandomNumber(10000, 10000000));
-
-    return OpenBrowser(url, username);
-  });
-
-  await Promise.all(tasks);
+const generateUsername = () => {
+  const locations = ['se', 'ua', 'us', 'fr', 'ca'];
+  return `qualityser-res-${locations[Math.floor(Math.random() * locations.length)]}-sid-${Math.floor(10000 + Math.random() * 90000)}`;
 };
 
-const RunTasks = async () => {
-  for (let i = 0; i < 14534554; i++) {
-    try {
-      await tasksPoll();
-    } catch (error) {
-      console.log(error);
-    }
-    console.log(views);
-  }
-};
+(async () => {
+  const TOTAL_SESSIONS = 1000; // Set your desired total sessions
+  const sessions = Array(TOTAL_SESSIONS).fill().map((_, i) => 
+    OpenBrowser(url, generateUsername())
+      .catch(e => console.error(`Session ${i} failed:`, e))
+  );
 
-RunTasks();
+  await Promise.all(sessions);
+})();
