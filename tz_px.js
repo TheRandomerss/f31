@@ -1,9 +1,15 @@
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import dotenv from "dotenv";
+import fs from "fs";
+
+// Load configuration from config.json
+const config = JSON.parse(fs.readFileSync("./c.json", "utf-8"));
 
 export const checkTz = async (username) => {
-  const proxyHost = "148.113.161.141";
-  const proxyPort = "5959";
+  dotenv.config();
+  const proxyHost = config.proxyHost;
+  const proxyPort = config.proxyPort;
   const proxyUsername = username;
   const proxyPassword = process.env.JEDI;
 
@@ -16,11 +22,6 @@ export const checkTz = async (username) => {
       "https://white-water-a7d6.mahdiidrissi2022.workers.dev/",
       {
         httpsAgent: proxyAgent,
-        timeout: 10000,
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        },
       }
     );
     const ipDetails = { timezone: response.data.trim() };
