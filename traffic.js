@@ -205,9 +205,9 @@ const generateGoogleReferer = () => {
 };
 
 const generateFingerprintOptions = () => {
-  const isMobile = Math.random() < 0.8;
+  const isMobile = Math.random() < 0.9;
   if (isMobile) {
-    const isAndroid = Math.random() < 0.7;
+    const isAndroid = Math.random() < 0.99;
     if (isAndroid) {
       const androidBrowsers = ["chrome", "firefox", "edge", "samsung"];
       const androidResolutions = [
