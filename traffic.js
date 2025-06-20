@@ -9,32 +9,18 @@ const config = JSON.parse(fs.readFileSync("./c.json", "utf-8"));
 
 const url = "https://web.lumeo.click/";
 
-const MIN_BOTS = 8; // Minimum number of bots per batch
-const MAX_BOTS = 8; // Maximum number of bots per batch
+const MIN_BOTS = 10; // Minimum number of bots per batch
+const MAX_BOTS = 10; // Maximum number of bots per batch
 
 // Define the weighted locations for generating usernames
 const weightedLocations = {
   se: 10,
+  us: 30,
   ua: 2,
   at: 2,
-  fr: 4,
-  ca: 3,
-  us: 30,
-  uk: 5,
-  de: 1,
-  jp: 1,
-  sg: 1,
-  kr: 1,
-  it: 1,
-  es: 1,
-  in: 1,
-  id: 1,
-  ph: 1,
-  th: 1,
-  tr: 1,
-  mx: 1,
-  no: 1,
-  hk: 1,
+  fr: 10,
+
+  uk: 10,
 };
 
 
